@@ -5,15 +5,16 @@ var gameOptions = {
     tileSize: 200,
     tileSpacing:20,
     boardSize: {
-        rows: 4,
-        cols: 4
+        rows: 6,
+        cols: 6
     },
-    tweenSpeed:500,
+    tweenSpeed:50,
     //touch movement variables
-    swipeMaxTime: 1000,
+    swipeMaxTime: 50,
     swipeMinDistance: 20,
     swipeMinNormal: 0.85,
-    aspectRatio: 16/9
+    aspectRatio: 16/9,
+    localStorageName: "topScore4096"
 }
 
 //constance for directions
@@ -28,8 +29,13 @@ window.onload = function() {
     var width = gameOptions.boardSize.cols * tileAndSpacing;
     width += gameOptions.tileSpacing;
     var gameConfig = {
-        width: width,
-        height: width * gameOptions.aspectRatio,
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+            parent: "theGameBoard",
+            width: width,
+            height: width * gameOptions.aspectRatio,
+        },
         backgroundColor: 0xecf0f1,
         scene:[bootGame,playGame]
     }
@@ -37,27 +43,27 @@ window.onload = function() {
 // create a new game object using the phaser framework
 game = new Phaser.Game(gameConfig);
 window.focus();
-resizeGame();
-window.addEventListener("resize", resizeGame);
+// resizeGame();
+// window.addEventListener("resize", resizeGame);
 
 }
 
 
-function resizeGame() {
-    var canvas = document.querySelector("canvas");
-    var windowWidth = window.innerWidth;
-    var windowHeight = window.innerHeight;
-    var windowRatio = windowWidth / windowHeight;
-    var gameRatio = game.config.width / game.config.height;
-    if(windowRatio < gameRatio) {
-        canvas.style.width = windowWidth + "px";
-        canvas.style.height = (windowWidth / gameRatio) + "px";
-    }
-    else {
-        canvas.style.width = (windowHeight * gameRatio) + "px";
-        canvas.style.height = windowHeight + "px";
-    }
- }
+// function resizeGame() {
+//     var canvas = document.querySelector("canvas");
+//     var windowWidth = window.innerWidth;
+//     var windowHeight = window.innerHeight;
+//     var windowRatio = windowWidth / windowHeight;
+//     var gameRatio = game.config.width / game.config.height;
+//     if(windowRatio < gameRatio) {
+//         canvas.style.width = windowWidth + "px";
+//         canvas.style.height = (windowWidth / gameRatio) + "px";
+//     }
+//     else {
+//         canvas.style.width = (windowHeight * gameRatio) + "px";
+//         canvas.style.height = windowHeight + "px";
+//     }
+//  }
 
 
 
@@ -66,12 +72,13 @@ class bootGame extends Phaser.Scene {
         super("BootGame");
     }
     preload() {
-        this.load.image("restart", "assets/sprites/restart.png");
-        this.load.image("scorepanel", "assets/sprites/scorepanel.png");
+        this.load.image("fullscreen", "assets/sprites/fullscreen.png")
+        this.load.image("restart", "assets/sprites/restart1.png");
+        this.load.image("scorepanel", "assets/sprites/scorepanel1.png");
         this.load.image("scorelabels", "assets/sprites/scorelabels.png");
         this.load.image("logo", "assets/sprites/KADlogo.png");
-        this.load.image("howtoplay", "assets/sprites/howtoplay.png");
-        this.load.image("gametitle", "assets/sprites/gametitle.png");
+        this.load.image("howtoplay", "assets/sprites/howtoplay1.png");
+        this.load.image("gametitle", "assets/sprites/gametitle1.png");
         this.load.image("emptytile", "assets/sprites/emptytile.png");
         this.load.spritesheet("tiles", "assets/sprites/tiles.png", {
             frameWidth: gameOptions.tileSize,
@@ -79,33 +86,67 @@ class bootGame extends Phaser.Scene {
         });
         this.load.audio("move", ["assets/sounds/move.ogg", "assets/sounds/move.mp3"]);
         this.load.audio("grow", ["assets/sounds/grow.ogg", "assets/sounds/grow.mp3"]);
+        this.load.bitmapFont("font", "assets/fonts/font.png", "assets/fonts/font.fnt");
     }
     create() {
         this.scene.start("PlayGame");
     }
 }
-
+//start playgame scene. Create the board, load all the tiles and hide them
 class playGame extends Phaser.Scene { 
     constructor() {
         super("PlayGame");
     }
+    //creates board, add sprites to board and hide them
     create() {
+        this.score = 0;
+        //set positionand add the image for the restart button
         var restartXY = this.getTilePosition(-0.9, gameOptions.boardSize.cols -1);
         var restartButton = this.add.sprite(restartXY.x, restartXY.y, "restart");
+        //make the restart sprite interactive and make it restart the game
         restartButton.setInteractive();
         restartButton.on("pointerdown", function(){
             this.scene.start("PlayGame");
         }, this);
+        //set position and add the image for the scoring boxes and labels
         var scoreXY = this.getTilePosition(-0.9, 1);
         this.add.image(scoreXY.x, scoreXY.y, "scorepanel");
         this.add.image(scoreXY.x, scoreXY.y - 70, "scorelabels");
+        //set position and add the font for the scoring boxes
+        var textXY = this.getTilePosition(-1, -0.2);
+        this.scoreText = this.add.bitmapText(textXY.x, textXY.y, "font", "0");
+        textXY = this.getTilePosition(-1, 1.1);
+        //load the best score from local storage
+        this.bestScore - localStorage.getItem(gameOptions.localStorageName);
+        if(this.bestScore == null){
+            this.bestScore = 0;
+        }
+        this.bestScoreText = this.add.bitmapText(textXY.x, textXY.y, "font", this.bestScore.toString());
+        //set position and add image for the game title and instructions
         var gameTitle = this.add.image(10, 5, "gametitle");
         gameTitle.setOrigin(0, -0.2);
         var howTo = this.add.image(game.config.width, 5, "howtoplay");
         howTo.setOrigin(1, -0.3);
         var logo = this.add.sprite(game.config.width / 2, game.config.height , "logo");
         logo.setOrigin(0.5, 1.5)
-
+        logo.setInteractive();
+        logo.on("pointerdown", function(){
+            window.location.href = "https://github.com/katenia/1024"
+        });
+        //set position and add the image for the fullscreen button
+        var fullscreen = this.getTilePosition(gameOptions.boardSize.rows + 1, gameOptions.boardSize.cols - 1);
+        var fullScreenButton = this.add.sprite(fullscreen.x + 65, fullscreen.y - 270, "fullscreen");
+        fullScreenButton.setInteractive();
+        fullScreenButton.on("pointerup", function() {
+            if(!this.scale.isFullscreen) {
+                this.scale.startFullscreen();
+            }
+            else {
+                this.scale.stopFullscreen();
+            }
+        }, this);
+        
+        //prevents player from moving anything
         this.canMove = false;
         //initializes an empty array
         this.boardArray = [];
@@ -239,6 +280,7 @@ class playGame extends Phaser.Scene {
                         
                         if(willUpdate){
                             this.boardArray[newRow][newCol].tileValue ++;
+                            this.score += Math.pow(2, this.boardArray[newRow][newCol].tileValue);
                             this.boardArray[newRow][newCol].upgraded = true;
                             //this.boardArray[curRow][curCol].tileSprite.setFrame(tileValue);
                         }
@@ -310,6 +352,10 @@ class playGame extends Phaser.Scene {
         if(!rowInside || !colInside) {
             return false;
         }
+        //limit tile value to 4096
+        if(this.boardArray[row][col].tileValue == 12){
+            return false;
+        }
         var emptySpot = this.boardArray[row][col].tileValue == 0;
         var sameValue = this.boardArray[row][col].tileValue == value;
         var alreadyUpgraded = this.boardArray[row][col].upgraded;
@@ -317,6 +363,17 @@ class playGame extends Phaser.Scene {
     }
 
     refreshBoard(){
+        this.scoreText.text = this.score.toString();
+        if(this.score > this.bestScore){
+            this.bestScore = this.score;
+            localStorage.setItem(gameOptions.localStorageName, this.bestScore);
+            this.bestScoreText.text = this.bestScore.toString();
+        }
+        if(this.score > this.bestScore){
+            this.bestScore = this.score;
+            localStorage.setItem(gameOptions.localStorageName, this.bestScore);
+            this.bestScoreText.text = this.bestScore.toString();
+        }
         for(var i = 0; i < gameOptions.boardSize.rows; i++){
             for(var j = 0; j < gameOptions.boardSize.cols; j++){
                 var spritePosition = this.getTilePosition(i, j);
